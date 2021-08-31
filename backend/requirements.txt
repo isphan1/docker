@@ -1,0 +1,9 @@
+django
+djangorestframework
+pillow
+channels
+channels-redis
+redis
+psycopg2-binary
+Celery
+python-dotenv

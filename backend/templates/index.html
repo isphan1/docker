@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <title>Real time data</title>
+    <meta name="description" content="" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet" href="" />
+  </head>
+  <body>
+    <canvas
+      id="myChart"
+      width="0"
+      height="0"
+      style="width: 500px; height: 500px"
+    ></canvas>
+    {% block content %} {% endblock %}
+    <script src="" async defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+      var value = [];
+      let socket = new WebSocket(
+        "ws://localhost:8000/ws/celery/"
+      );
+      socket.onopen = function (e) {
+        console.log("Connection established");
+      };
+
+      socket.onmessage = function (e) {
+        var res = JSON.parse(e.data);
+        value = res.message;
+        var ngData = data.datasets[0].data;
+        ngData.shift();
+        ngData.push(value);
+        data.datasets[0].data = ngData;
+        myChart.update();
+      };
+
+      socket.onclose = function (e) {
+        console.log(e);
+        console.log("Connection CLosed");
+      };
+
+      const labels = ["January", "February", "March", "April", "May", "June",'July','Auguest',
+      'September','October','November','December'];
+      const data = {
+        labels: labels,
+        datasets: [
+          {
+            label: "My First dataset",
+            backgroundColor: "rgb(255, 99, 132)",
+            borderColor: "rgb(255, 99, 132)",
+            data: [74568,12324,76576,124323,232543,797897,32435,967796,323534,987896,435456,756757],
+          },
+        ],
+      };
+
+      const config = {
+        type: "line",
+        data,
+        options: {},
+      };
+
+      var myChart = new Chart(
+        document.getElementById("myChart").getContext("2d"),
+        config
+      );
+    </script>
+  </body>
+</html>

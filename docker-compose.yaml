@@ -1,0 +1,96 @@
+version: "3"
+
+services: 
+  web:
+    build: 
+      context: ./backend
+
+    ports: 
+      - "8000:8000"
+
+    volumes:
+      - ./staticfiles:/backend/staticfiles
+      - ./mediafiles:/backend/mediafiles
+
+    command: sh -c "python manage.py flush --noinput &&
+                    python manage.py makemigrations && 
+                    python manage.py migrate &&
+                    python manage.py initiate_admin && 
+                    python manage.py collectstatic --noinput &&
+                    daphne core.asgi:application --port 8000 --bind 0.0.0.0 -v2"  
+    depends_on: 
+      - pgdb
+    env_file:
+      - .env
+    
+  redis:
+    image: redis:alpine
+    restart: 'always'
+
+  # Database Postgres
+  pgdb:
+    image: postgres
+    volumes:
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./data/db:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${DB_NAME}
+      - PGPORT=${DB_PORT}
+      - POSTGRES_USER=${POSTGRES_USER}
+  
+  celery:
+    restart: always
+    build:
+      context: ./backend
+    command: celery -A core worker 
+    image: final_web
+    depends_on:
+      - redis
+      - web
+
+  celery-beat:
+    restart: always
+    image: final_web
+    build:
+      context: ./backend
+    command: celery -A core beat 
+    depends_on:
+      - redis
+      - web
+      - pgdb
+
+  pgadmin:
+    image: dpage/pgadmin4
+    restart: always
+    ports: 
+      - "5050:80"
+
+    volumes:
+      - ./data/pgadmin-data:/var/lib/pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@gmail.com
+      PGADMIN_DEFAULT_PASSWORD: jnj
+
+  frontend:
+    build: ./frontend
+    ports: 
+      - "3000:3000"
+
+  nginx:
+    image: nginx:latest
+    ports: 
+      - "80:80"
+    volumes:
+      - ./nginx/nginx-setup.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./staticfiles:/backend/staticfiles
+      - ./mediafiles:/backend/mediafiles
+      # - ./next_build:/var/www/.next
+
+    depends_on: 
+      - web
+      - frontend
+
+# volumes: 
+#   staticfiles:
+#   mediafiles:
